@@ -54,7 +54,6 @@
             color: #fff;
             font-size: 1rem;
             box-sizing: border-box;
-            transition: 0.3s;
         }
         input:focus { border-color: var(--primary-color); outline: none; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); }
         .input-group { display: flex; align-items: center; }
@@ -89,11 +88,9 @@
         .error { color: var(--error-color); }
         .user-bar { display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.4); padding: 10px 15px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--border-color); }
         .logout-btn { width: auto; margin: 0; padding: 6px 12px; background: #e11d48; font-size: 0.85rem; border-radius: 8px; }
-        .logout-btn:hover { background: #be123c; }
     </style>
 </head>
 <body>
-
     <div class="container">
         <h1>domin BOdaSF</h1>
         <div class="subtitle">النظام الموحد لإدارة الحسابات وحجز الاستضافات تلقائياً</div>
@@ -152,7 +149,6 @@
     </div>
 
     <script>
-        // تكوين الفايربيز المباشر والصحيح الخاص بمشروعك
         const firebaseConfig = {
             apiKey: "AIzaSyDfL4KZ0wDUvJI9Go_luMfKFGpW-vj9c8c",
             authDomain: "domin-bodasf.firebaseapp.com",
@@ -168,7 +164,6 @@
         const auth = firebase.auth();
         let currentSubdomain = "";
 
-        // مراقبة حالة جلسة المستخدم تلقائياً
         auth.onAuthStateChanged(user => {
             if (user) {
                 document.getElementById('welcomeText').innerText = `المستخدم: ${user.email}`;
@@ -188,29 +183,25 @@
             document.querySelectorAll('.status').forEach(s => { s.innerText = ''; s.className = 'status'; });
         }
 
-        // دالة إنشاء حساب جديد
         async function register() {
             const email = document.getElementById('regEmail').value.trim();
             const password = document.getElementById('regPassword').value;
             const status = document.getElementById('regStatus');
             if(!email || !password) return alert('برجاء ملء جميع الحقول!');
-
             status.className = "status"; status.innerText = "جاري إنشاء الحساب...";
             try {
                 await auth.createUserWithEmailAndPassword(email, password);
-                status.className = "status success"; status.innerText = "تم إنشاء الحساب بنجاح ودخولك للوحة!";
+                status.className = "status success"; status.innerText = "تم إنشاء الحساب بنجاح!";
             } catch (err) {
                 status.className = "status error"; status.innerText = "فشل التسجيل: " + err.message;
             }
         }
 
-        // دالة تسجيل الدخول
         async function login() {
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
             const status = document.getElementById('loginStatus');
             if(!email || !password) return alert('برجاء إدخال البريد والباسورد!');
-
             status.className = "status"; status.innerText = "جاري التحقق...";
             try {
                 await auth.signInWithEmailAndPassword(email, password);
@@ -220,63 +211,45 @@
             }
         }
 
-        // تسجيل الخروج
         function logout() { auth.signOut(); currentSubdomain = ""; }
 
-        // الخطوة الأولى: فحص وحجز الدومين عبر السيرفر الخلفي
         async function checkAndReserve() {
             const sub = document.getElementById('subdomain').value.trim().toLowerCase();
             const statusDiv = document.getElementById('domainStatus');
             if(!sub) return alert('اكتب اسم الدومين المطلوب أولاً!');
-
-            statusDiv.className = "status"; statusDiv.innerText = "جاري التحقق من التوافر وحجز الخانة...";
-
+            statusDiv.className = "status"; statusDiv.innerText = "جاري التحقق...";
             try {
                 const token = await auth.currentUser.getIdToken();
                 const res = await fetch('/api/reserve', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({ subdomain: sub })
                 });
                 const data = await res.json();
-
                 if(data.success) {
                     currentSubdomain = sub;
                     statusDiv.className = "status success"; statusDiv.innerText = data.message;
                 } else {
                     statusDiv.className = "status error"; statusDiv.innerText = data.message;
                 }
-            } catch (e) {
-                statusDiv.className = "status error"; statusDiv.innerText = "حدث خطأ بالاتصال بالسيرفر.";
-            }
+            } catch (e) { statusDiv.className = "status error"; statusDiv.innerText = "حدث خطأ بالاتصال بالسيرفر."; }
         }
 
-        // الخطوة الثانية: تحويل الملف ورفعه ومزامنته مع GitHub
         async function uploadToGitHub() {
             const fileInput = document.getElementById('scriptFile');
             const uploadStatus = document.getElementById('uploadStatus');
-            
-            if(!currentSubdomain) return alert('يجب إتمام الخطوة 1 وحجز الدومين بنجاح أولاً!');
-            if(fileInput.files.length === 0) return alert('الرجاء اختيار ملف السكربت المراد نشره!');
-
-            uploadStatus.className = "status"; uploadStatus.innerText = "جاري بناء المستودع ورفع الملفات لـ GitHub وتحديث الداتا...";
-
+            if(!currentSubdomain) return alert('يجب إتمام الخطوة 1 وحجز الدومين أولاً!');
+            if(fileInput.files.length === 0) return alert('الرجاء اختيار ملف السكربت!');
+            uploadStatus.className = "status"; uploadStatus.innerText = "جاري الرفع لـ GitHub...";
             const file = fileInput.files[0];
             const reader = new FileReader();
-            
             reader.onload = async function(e) {
                 const content = e.target.result;
                 try {
                     const token = await auth.currentUser.getIdToken();
                     const res = await fetch('/api/deploy', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                         body: JSON.stringify({
                             subdomain: currentSubdomain,
                             fileName: file.name,
@@ -284,16 +257,13 @@
                         })
                     });
                     const data = await res.json();
-
                     if(data.success) {
                         uploadStatus.className = "status success";
                         uploadStatus.innerText = data.message + "\nرابط المستودع: " + data.url;
                     } else {
                         uploadStatus.className = "status error"; uploadStatus.innerText = "فشل النشر: " + data.error;
                     }
-                } catch(err) {
-                    uploadStatus.className = "status error"; uploadStatus.innerText = "خطأ أثناء محاولة الرفع.";
-                }
+                } catch(err) { uploadStatus.className = "status error"; uploadStatus.innerText = "خطأ أثناء محاولة الرفع."; }
             };
             reader.readAsText(file);
         }
